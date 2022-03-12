@@ -11,10 +11,10 @@ import (
 
 func main() {
 	logging()
-	routeing()
+	routing()
 }
 
-func routeing() {
+func routing() {
 	r := gin.Default()
 	api := r.Group("api")
 	routes.RouteApi(api)
