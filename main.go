@@ -16,6 +16,7 @@ func main() {
 
 func routing() {
 	r := gin.Default()
+	r.Use(gin.Logger())
 	api := r.Group("api")
 	routes.RouteApi(api)
 
