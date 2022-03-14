@@ -1,6 +1,7 @@
 package main
 
 import (
+	"ezpz/config"
 	"ezpz/routes"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -15,12 +16,14 @@ func main() {
 }
 
 func routing() {
+	gin.SetMode(config.AppConfig()["env"])
 	r := gin.Default()
 	r.Use(gin.Logger())
 	api := r.Group("api")
 	routes.RouteApi(api)
 
-	if err := r.Run(); err != nil {
+	addr := fmt.Sprintf("%v:%v", config.AppConfig()["host"], config.AppConfig()["port"])
+	if err := r.Run(addr); err != nil {
 		log.Println(err)
 	}
 }
