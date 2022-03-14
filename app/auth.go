@@ -1,23 +1,22 @@
 package app
 
 import (
-	"ezpz/internals/redis"
-	"fmt"
-	"log"
-	"net/http"
-	"strconv"
-
 	"ezpz/internals/common"
 	"ezpz/internals/jwt"
+	"ezpz/internals/redis"
 	"ezpz/internals/response"
-	"ezpz/internals/validations"
-
+	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/mitchellh/mapstructure"
+	"log"
+	"net/http"
 )
 
 func Register(c *gin.Context) {
 	u := NewUser(false, false)
-	validations.Struct(c, u)
+	//if errs := validations.Struct(u); errs != nil {
+	//	response.Error(c, errs)
+	//}
 	if c.Param("password") != c.Param("password_confirm") {
 		response.Error(c, map[string]string{"password": "Password and confirm not the same"})
 	}
@@ -30,22 +29,42 @@ func Register(c *gin.Context) {
 		log.Println(err)
 	}
 	u.Password = password
+	id := Create(UserCollection, u)
 
-	key := fmt.Sprintf("auth:user:id:%s", strconv.FormatUint(uint64(u.ID), 10))
-	value := strconv.FormatUint(uint64(u.ID), 10)
-	if err := redis.Set(key, value, 60); err != nil {
+	key := fmt.Sprintf("auth:user:id:%s", id)
+	if err := redis.Set(key, key, 60); err != nil {
 		log.Println(err)
 		response.InternalServerError(c)
 	}
 
 	c.JSON(http.StatusOK, response.JsonResponse{
-		Message: "",
-		Data:    u.ID,
+		Data: map[string]interface{}{
+			"user_id": id,
+		},
 	})
 }
 
 func Login(c *gin.Context) {
-	c.JSON(http.StatusOK, "login page")
+	var u User
+	data := Find(UserCollection, "username", c.Param("username"))
+	if data == nil {
+		response.Error(c, map[string]string{"username": "username or password is invalid!"})
+	}
+
+	if err := mapstructure.Decode(data, &u); err != nil {
+		log.Println(err)
+		response.InternalServerError(c)
+	}
+
+	if err := common.CheckHash(u.Password, c.Param("password")); err != nil {
+		response.Error(c, map[string]string{"username": "username or password is invalid!"})
+	}
+
+	c.JSON(http.StatusOK, response.JsonResponse{
+		Data: map[string]interface{}{
+			"user_id": u.ID.String(),
+		},
+	})
 }
 
 func Logout(c *gin.Context) {
@@ -54,13 +73,22 @@ func Logout(c *gin.Context) {
 		MaxAge: -1}
 	c.SetCookie(cookie.Name, cookie.Value, cookie.MaxAge, cookie.Path, cookie.Domain, cookie.Secure, cookie.HttpOnly)
 
-	c.JSON(http.StatusOK, response.JsonResponse{Message: "You are successfully logout"})
+	c.JSON(http.StatusOK, response.JsonResponse{Message: "User successfully logout"})
 }
 
 func VerifyOtp(c *gin.Context) {
 	var u User
+	data := Find(UserCollection, "id", c.Param("user_id"))
+	if data == nil {
+		response.Error(c, map[string]string{"user": "User not found"})
+	}
 
-	key := fmt.Sprintf("auth:user:id:%s", strconv.FormatUint(uint64(u.ID), 10))
+	if err := mapstructure.Decode(data, &u); err != nil {
+		log.Println(err)
+		response.InternalServerError(c)
+	}
+
+	key := fmt.Sprintf("auth:user:id:%s", u.ID.String())
 	_, err := redis.Get(key)
 	if err != nil {
 		response.Error(c, map[string]string{"otp": "otp has been expired"})
