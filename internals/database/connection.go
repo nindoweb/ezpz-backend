@@ -2,6 +2,8 @@ package database
 
 import (
 	"context"
+	"ezpz/config"
+	"fmt"
 	"log"
 
 	"go.mongodb.org/mongo-driver/mongo"
@@ -9,7 +11,12 @@ import (
 )
 
 func MongoClient(collection string) *mongo.Collection {
-	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017") // Connect to //MongoDB
+	credential := options.Credential{
+		Username: config.DBConfig()["username"],
+		Password: config.DBConfig()["password"],
+	}
+	uri := fmt.Sprintf("mongodb://%s:%s", config.DBConfig()["host"], config.DBConfig()["port"])
+	clientOptions := options.Client().ApplyURI(uri).SetAuth(credential)
 	client, err := mongo.Connect(context.TODO(), clientOptions)
 	if err != nil {
 		log.Fatal(err)
@@ -20,5 +27,5 @@ func MongoClient(collection string) *mongo.Collection {
 		log.Println(err)
 	}
 
-	return client.Database("ezpz").Collection(collection)
+	return client.Database(config.DBConfig()["name"]).Collection(collection)
 }
