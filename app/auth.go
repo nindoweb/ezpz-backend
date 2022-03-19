@@ -1,45 +1,50 @@
 package app
 
 import (
+	"fmt"
+	"log"
+	"net/http"
+
 	"ezpz/internals/common"
 	"ezpz/internals/jwt"
 	"ezpz/internals/redis"
 	"ezpz/internals/response"
-	"fmt"
+	"ezpz/internals/validations"
+
 	"github.com/gin-gonic/gin"
 	"github.com/mitchellh/mapstructure"
-	"log"
-	"net/http"
 )
 
 func Register(c *gin.Context) {
 	u := NewUser(false, false)
-	//if errs := validations.Struct(u); errs != nil {
-	//	response.Error(c, errs)
-	//}
+
+	if verr := validations.ValidateStruct(c, u); verr != nil {
+		response.ValidationError(c, verr)
+		return
+	}
+
 	if c.Param("password") != c.Param("password_confirm") {
 		response.Error(c, map[string]string{"password": "Password and confirm not the same"})
 	}
 
-	if err := c.Bind(u); err != nil {
-		log.Println(err)
-	}
 	password, err := common.Hash(c.Param("password"))
 	if err != nil {
 		log.Println(err)
 	}
-	u.Password = password
-	id := Create(UserCollection, u)
 
-	key := fmt.Sprintf("auth:user:id:%s", id)
+	u.Password = password
+	Create(UserCollection, u)
+
+	key := fmt.Sprintf("auth:username:%s", u.Username)
 	if err := redis.Set(key, key, 60); err != nil {
 		log.Println(err)
 		response.InternalServerError(c)
+		return
 	}
 
 	c.JSON(http.StatusOK, response.JsonResponse{
 		Data: map[string]interface{}{
-			"user_id": id,
+			"username": u.Username,
 		},
 	})
 }
@@ -78,6 +83,13 @@ func Logout(c *gin.Context) {
 
 func VerifyOtp(c *gin.Context) {
 	var u User
+
+	key := fmt.Sprintf("auth:user:id:%s", u.Username)
+	_, err := redis.Get(key)
+	if err != nil {
+		response.Error(c, map[string]string{"otp": "otp has been expired"})
+	}
+
 	data := Find(UserCollection, "id", c.Param("user_id"))
 	if data == nil {
 		response.Error(c, map[string]string{"user": "User not found"})
@@ -86,12 +98,6 @@ func VerifyOtp(c *gin.Context) {
 	if err := mapstructure.Decode(data, &u); err != nil {
 		log.Println(err)
 		response.InternalServerError(c)
-	}
-
-	key := fmt.Sprintf("auth:user:id:%s", u.ID.String())
-	_, err := redis.Get(key)
-	if err != nil {
-		response.Error(c, map[string]string{"otp": "otp has been expired"})
 	}
 
 	token, err := jwt.CreateToken(jwt.NewPayload(u.Username))

@@ -2,9 +2,9 @@ package app
 
 import (
 	"context"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"log"
+
+	"go.mongodb.org/mongo-driver/bson"
 
 	"ezpz/internals/database"
 
@@ -15,14 +15,10 @@ const (
 	UserCollection string = "users"
 )
 
-func Create(collectionName string, v interface{}) string {
-	result, err := database.MongoClient(collectionName).InsertOne(context.TODO(), v)
-	if err != nil {
+func Create(collectionName string, v interface{}) {
+	if _, err := database.MongoClient(collectionName).InsertOne(context.TODO(), v);err != nil {
 		log.Println(err)
 	}
-
-	return result.InsertedID.(primitive.ObjectID).Hex()
-
 }
 
 func Find(CollectionName string, column string, value string) map[string]interface{} {

@@ -1,8 +1,9 @@
 package response
 
 import (
-	"github.com/gin-gonic/gin"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 type JsonResponse struct {
@@ -15,7 +16,6 @@ func InternalServerError(c *gin.Context) {
 		Message: "Internal server error",
 	})
 	c.Abort()
-	return
 }
 
 func NotFound(c *gin.Context) {
@@ -23,7 +23,6 @@ func NotFound(c *gin.Context) {
 		Message: "not found",
 	})
 	c.Abort()
-	return
 }
 
 func Forbidden(c *gin.Context) {
@@ -31,13 +30,18 @@ func Forbidden(c *gin.Context) {
 		Message: "Forbidden",
 	})
 	c.Abort()
-	return
 }
 
 func Error(c *gin.Context, data interface{}) {
-	c.JSON(http.StatusInternalServerError, JsonResponse{
+	c.JSON(http.StatusBadRequest, JsonResponse{
 		Data: data,
 	})
 	c.Abort()
-	return
+}
+
+func ValidationError(c *gin.Context, data interface{}) {
+	c.JSON(http.StatusUnprocessableEntity, JsonResponse{
+		Data: data,
+	})
+	c.Abort()
 }
