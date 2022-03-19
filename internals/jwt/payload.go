@@ -2,12 +2,13 @@ package jwt
 
 import (
 	"errors"
-	"ezpz/config"
-	"github.com/dgrijalva/jwt-go"
-	"github.com/google/uuid"
 	"log"
 	"strconv"
 	"time"
+
+	"github.com/dgrijalva/jwt-go"
+	"github.com/google/uuid"
+	"github.com/spf13/viper"
 )
 
 type Payload struct {
@@ -19,7 +20,7 @@ type Payload struct {
 
 func NewPayload(username string) *Payload {
 	tokenID, _ := uuid.NewRandom()
-	jwtExpireTime, err := strconv.Atoi(config.AppConfig()["jwt_expire"])
+	jwtExpireTime, err := strconv.Atoi(viper.GetString("JWT_EXPIRE_TIME"))
 	if err != nil {
 		log.Println(err)
 	}
@@ -39,5 +40,5 @@ func keyFunc(token *jwt.Token) (interface{}, error) {
 		return nil, errors.New("invalid token")
 	}
 
-	return []byte(config.AppConfig()["jwt_secret"]), nil
+	return []byte(viper.GetString("JWT_SECRET")), nil
 }

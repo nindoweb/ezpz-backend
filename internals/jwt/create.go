@@ -1,9 +1,10 @@
 package jwt
 
 import (
-	"ezpz/config"
 	"fmt"
+
 	"github.com/dgrijalva/jwt-go"
+	"github.com/spf13/viper"
 )
 
 func CreateToken(payload *Payload) (string, error) {
@@ -15,7 +16,7 @@ func CreateToken(payload *Payload) (string, error) {
 	claims["expired"] = payload.ExpiredAt
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	jwtSecret := fmt.Sprintf("value: %v", config.AppConfig()["jwt_secret"])
+	jwtSecret := fmt.Sprintf("value: %v", viper.GetString("JWT_SECRET"))
 
 	return token.SignedString([]byte(jwtSecret))
 }

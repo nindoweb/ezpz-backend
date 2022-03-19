@@ -6,14 +6,27 @@ import (
 	"os"
 	"time"
 
-	"ezpz/config"
 	"ezpz/routes"
+
+	"github.com/spf13/viper"
 )
 
 func main() {
 	logging()
 
-	addr := fmt.Sprintf("%v:%v", config.AppConfig()["host"], config.AppConfig()["port"])
+	viper.SetConfigName("config") 
+	viper.SetConfigType("yaml")
+	dir, _ := os.Getwd()
+	viper.AddConfigPath(dir)
+	if err := viper.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			panic("please cp config.example.yaml to config.yaml and setup your configureation")
+		} else {
+			panic(err)
+		}
+	}
+
+	addr := fmt.Sprintf("%v:%v", viper.GetString("HOST"), viper.GetString("PORT"))
 	if err := routes.Routing().Run(addr); err != nil {
 		log.Println(err)
 	}
