@@ -1,22 +1,24 @@
-package app
+package api
 
 import (
 	"fmt"
 	"log"
 	"net/http"
 
-	"ezpz/internals/common"
-	"ezpz/internals/jwt"
-	"ezpz/internals/redis"
-	"ezpz/internals/response"
-	"ezpz/internals/validations"
+	"ezpz/app/models"
+	"ezpz/pkg/common"
+	"ezpz/pkg/jwt"
+	"ezpz/pkg/notification"
+	"ezpz/pkg/redis"
+	"ezpz/pkg/response"
+	"ezpz/pkg/validations"
 
 	"github.com/gin-gonic/gin"
 	"github.com/mitchellh/mapstructure"
 )
 
 func Register(c *gin.Context) {
-	u := NewUser(false, false)
+	u := models.NewUser(false, false)
 
 	if verr := validations.ValidateStruct(c, u); verr != nil {
 		response.ValidationError(c, verr)
@@ -33,13 +35,14 @@ func Register(c *gin.Context) {
 	}
 
 	u.Password = password
-	Create(UserCollection, u)
+	models.Create(models.USER_COLLECTION, u)
 
 	key := fmt.Sprintf("auth:username:%s", u.Username)
-	if err := redis.Set(key, key, 60); err != nil {
+	redis.Set(key, key, 60)
+
+	if err := notification.SendMail("register", []string{u.Email}, "6565"); err != nil {
 		log.Println(err)
-		response.InternalServerError(c)
-		return
+		panic(err)
 	}
 
 	c.JSON(http.StatusOK, response.JsonResponse{
@@ -50,8 +53,8 @@ func Register(c *gin.Context) {
 }
 
 func Login(c *gin.Context) {
-	var u User
-	data := Find(UserCollection, "username", c.Param("username"))
+	var u models.User
+	data := models.Find(models.USER_COLLECTION, "username", u.Username)
 	if data == nil {
 		response.Error(c, map[string]string{"username": "username or password is invalid!"})
 	}
@@ -82,15 +85,15 @@ func Logout(c *gin.Context) {
 }
 
 func VerifyOtp(c *gin.Context) {
-	var u User
+	var u models.User
 
 	key := fmt.Sprintf("auth:user:id:%s", u.Username)
-	_, err := redis.Get(key)
-	if err != nil {
+	value, _ := redis.Get(key)
+	if value == ""  {
 		response.Error(c, map[string]string{"otp": "otp has been expired"})
 	}
 
-	data := Find(UserCollection, "id", c.Param("user_id"))
+	data := models.Find(models.USER_COLLECTION, "username", u.Username)
 	if data == nil {
 		response.Error(c, map[string]string{"user": "User not found"})
 	}

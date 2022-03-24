@@ -1,7 +1,9 @@
 package routes
 
 import (
-	"ezpz/app"
+	"ezpz/app/controllers/api"
+	"ezpz/app/handlers"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -12,9 +14,12 @@ func RouteApi(r *gin.RouterGroup) {
 func v1(r *gin.RouterGroup) {
 	auth := r.Group("auth")
 	{
-		auth.POST("register", app.Register)
-		auth.POST("login", app.Login)
-		auth.GET("logout", app.Logout)
-		auth.POST("verify/otp", app.VerifyOtp)
+		needAuth := auth.Use(handlers.Auth())
+		needAuth.POST("register", api.Register)
+		needAuth.POST("login", api.Login)
+		needAuth.POST("verify/otp", api.VerifyOtp)
+
+		needGuest := auth.Use(handlers.Guest())
+		needGuest.GET("logout", api.Logout)
 	}
 }

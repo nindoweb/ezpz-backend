@@ -8,7 +8,6 @@ import (
 )
 
 func NewClient() *redis.Client {
-
 	return redis.NewClient(&redis.Options{
 		Addr: fmt.Sprintf("%v:%v", viper.GetString("REDIS_HOST"), viper.GetString("REDIS_PORT")),
 		Password: viper.GetString("REDIS_PASSWORD"),
