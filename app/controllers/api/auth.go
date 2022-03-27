@@ -35,7 +35,7 @@ func Register(c *gin.Context) {
 	}
 
 	u.Password = password
-	models.Create(models.USER_COLLECTION, u)
+	go models.Create(models.USER_COLLECTION, u)
 
 	key := fmt.Sprintf("auth:username:%s", u.Username)
 	redis.Set(key, key, time.Minute * 2)

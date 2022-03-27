@@ -29,9 +29,7 @@ func MongoClient(collection string) *mongo.Collection {
 		log.Println(err)
 	}
 
-	err = client.Ping(context.TODO(), nil)
-	fmt.Println(err)
-	if err != nil {
+	if err = client.Ping(context.TODO(), nil); err != nil {
 		log.Println(err)
 	}
 	
