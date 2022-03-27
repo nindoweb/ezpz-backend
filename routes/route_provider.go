@@ -8,6 +8,7 @@ import (
 func Routing() *gin.Engine {
 	gin.SetMode(viper.GetString("ENV"))
 	r := gin.Default()
+	r.SetTrustedProxies([]string{"*"})
 	r.Use(gin.Logger())
 	api := r.Group("api")
 	RouteApi(api)

@@ -14,12 +14,12 @@ func RouteApi(r *gin.RouterGroup) {
 func v1(r *gin.RouterGroup) {
 	auth := r.Group("auth")
 	{
-		needAuth := auth.Use(handlers.Auth())
-		needAuth.POST("register", api.Register)
-		needAuth.POST("login", api.Login)
-		needAuth.POST("verify/otp", api.VerifyOtp)
-
 		needGuest := auth.Use(handlers.Guest())
-		needGuest.GET("logout", api.Logout)
+		needGuest.POST("register", api.Register)
+		needGuest.POST("login", api.Login)
+		needGuest.POST("verify/otp", api.VerifyOtp)
+
+		needAuth := auth.Use(handlers.Auth())
+		needAuth.GET("logout", api.Logout)
 	}
 }

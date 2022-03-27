@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"ezpz/app/models"
 	"ezpz/pkg/common"
 	"ezpz/pkg/jwt"
-	"ezpz/pkg/notification"
 	"ezpz/pkg/redis"
 	"ezpz/pkg/response"
 	"ezpz/pkg/validations"
@@ -38,12 +38,12 @@ func Register(c *gin.Context) {
 	models.Create(models.USER_COLLECTION, u)
 
 	key := fmt.Sprintf("auth:username:%s", u.Username)
-	redis.Set(key, key, 60)
+	redis.Set(key, key, time.Minute * 2)
 
-	if err := notification.SendMail("register", []string{u.Email}, "6565"); err != nil {
-		log.Println(err)
-		panic(err)
-	}
+	// if err := notification.SendMail("register", []string{u.Email}, "6565"); err != nil {
+	// 	log.Println(err)
+	// 	panic(err)
+	// }
 
 	c.JSON(http.StatusOK, response.JsonResponse{
 		Data: map[string]interface{}{

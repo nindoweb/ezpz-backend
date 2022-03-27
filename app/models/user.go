@@ -2,6 +2,7 @@ package models
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"gopkg.in/mgo.v2/bson"
@@ -29,4 +30,8 @@ func NewUser(isStaff bool, isSuperuser bool) *User {
 	u.IsSuperuser = isSuperuser
 
 	return u
+}
+
+func (u User) String() string {
+	return fmt.Sprintf(u.Username)
 }
