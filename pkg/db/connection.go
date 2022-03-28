@@ -1,4 +1,4 @@
-package database
+package db
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func MongoClient(collection string) *mongo.Collection {
+func mongoClient(collection string) *mongo.Collection {
 	credential := options.Credential{
 		Username: viper.GetString("DB_USER"),
 		Password: viper.GetString("DB_PASSWORD"),

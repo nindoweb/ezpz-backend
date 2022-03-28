@@ -1,8 +1,9 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
-	"log"
+	"io/ioutil"
 	"net/http"
 	"time"
 
@@ -14,7 +15,6 @@ import (
 	"ezpz/pkg/validations"
 
 	"github.com/gin-gonic/gin"
-	"github.com/mitchellh/mapstructure"
 )
 
 func Register(c *gin.Context) {
@@ -29,21 +29,14 @@ func Register(c *gin.Context) {
 		response.Error(c, map[string]string{"password": "Password and confirm not the same"})
 	}
 
-	password, err := common.Hash(c.Param("password"))
-	if err != nil {
-		log.Println(err)
-	}
-
-	u.Password = password
-	go models.Create(models.USER_COLLECTION, u)
+	go func() {
+		u.HashPassword(c.Param("password"))
+		u.Create()
+		u.SendOtp()
+	}()
 
 	key := fmt.Sprintf("auth:username:%s", u.Username)
 	redis.Set(key, key, time.Minute * 2)
-
-	// if err := notification.SendMail("register", []string{u.Email}, "6565"); err != nil {
-	// 	log.Println(err)
-	// 	panic(err)
-	// }
 
 	c.JSON(http.StatusOK, response.JsonResponse{
 		Data: map[string]interface{}{
@@ -54,23 +47,21 @@ func Register(c *gin.Context) {
 
 func Login(c *gin.Context) {
 	var u models.User
-	data := models.Find(models.USER_COLLECTION, "username", u.Username)
-	if data == nil {
-		response.Error(c, map[string]string{"username": "username or password is invalid!"})
-	}
-
-	if err := mapstructure.Decode(data, &u); err != nil {
-		log.Println(err)
-		response.InternalServerError(c)
-	}
+	// todo: check username is required
+	u.FindByUser(c.Param("username"))
 
 	if err := common.CheckHash(u.Password, c.Param("password")); err != nil {
 		response.Error(c, map[string]string{"username": "username or password is invalid!"})
 	}
 
+	key := fmt.Sprintf("auth:username:%s:otp:%s", u.Username, c.Param("otp"))
+	redis.Set(key, key, time.Minute * 2)
+
+	go u.SendOtp()
+
 	c.JSON(http.StatusOK, response.JsonResponse{
 		Data: map[string]interface{}{
-			"user_id": u.ID.String(),
+			"username": u.Username,
 		},
 	})
 }
@@ -81,31 +72,43 @@ func Logout(c *gin.Context) {
 		MaxAge: -1}
 	c.SetCookie(cookie.Name, cookie.Value, cookie.MaxAge, cookie.Path, cookie.Domain, cookie.Secure, cookie.HttpOnly)
 
-	c.JSON(http.StatusOK, response.JsonResponse{Message: "User successfully logout"})
+	c.JSON(http.StatusNoContent, response.JsonResponse{Message: "User successfully logout"})
 }
 
 func VerifyOtp(c *gin.Context) {
+	byteData, err := ioutil.ReadAll(c.Request.Body)
+	if err != nil {
+		response.InternalServerError(c)
+	}
+	var data map[string]string
+	json.Unmarshal(byteData, &data)
+
+	if data["otp"] == "" {
+		response.ValidationError(c, map[string]interface{}{"otp":"otp is required"})
+		return
+	}
+
+	if data["username"] == "" {
+		response.ValidationError(c, map[string]interface{}{"username":"username is required"})
+		return
+	}
+
 	var u models.User
 
-	key := fmt.Sprintf("auth:user:id:%s", u.Username)
+	key := fmt.Sprintf("auth:username:%s:otp:%s", data["username"], data["otp"])
 	value, _ := redis.Get(key)
 	if value == ""  {
 		response.Error(c, map[string]string{"otp": "otp has been expired"})
+		return
 	}
 
-	data := models.Find(models.USER_COLLECTION, "username", u.Username)
-	if data == nil {
-		response.Error(c, map[string]string{"user": "User not found"})
-	}
-
-	if err := mapstructure.Decode(data, &u); err != nil {
-		log.Println(err)
-		response.InternalServerError(c)
-	}
+	redis.Forget(key)
+	u.FindByUser(data["username"])
 
 	token, err := jwt.CreateToken(jwt.NewPayload(u.Username))
 	if err != nil {
-		response.Error(c, map[string]string{"token": token})
+		response.Error(c, map[string]interface{}{"token": err})
+		return
 	}
 
 	c.JSON(http.StatusOK, response.JsonResponse{Data: map[string]string{"token": token}})

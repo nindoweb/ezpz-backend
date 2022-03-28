@@ -3,9 +3,20 @@ package models
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"time"
 
+	"ezpz/pkg/common"
+	"ezpz/pkg/db"
+	"ezpz/pkg/notification"
+	"ezpz/pkg/otp"
+
+	"github.com/mitchellh/mapstructure"
 	"gopkg.in/mgo.v2/bson"
+)
+
+const (
+	USER_COLLECTION string = "users"
 )
 
 type User struct {
@@ -32,6 +43,50 @@ func NewUser(isStaff bool, isSuperuser bool) *User {
 	return u
 }
 
+type UserService interface {
+	SendOtp() error
+	HashPassword()
+	Create()
+	FindByUser()
+}
+
+func userCollection() db.Query {
+	return db.NewQuery(USER_COLLECTION)
+}
+
 func (u User) String() string {
 	return fmt.Sprintf(u.Username)
+}
+
+func (u User) SendOtp() error {
+	message := fmt.Sprintf("Welcom to ezpz \n opt: %v", otp.Create(4))
+	if err := notification.SendMail("register", []string{u.Email}, message); err != nil {
+		log.Println(err)
+		return err
+	}
+
+	return nil
+}
+
+func (u User) HashPassword(password string) {
+	password, err := common.Hash(password)
+	if err != nil {
+		log.Println(err)
+	}
+	
+	u.Password = password
+	u.Create()
+}
+
+func (u User) Create() {
+	userCollection().Create(u)
+}
+
+func (u User) FindByUser(username string) {
+	data, err := userCollection().Where("username", u.Username).First()
+	if err != nil {
+		log.Println(err)
+	}
+
+	mapstructure.Decode(data, &u)
 }

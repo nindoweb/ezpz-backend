@@ -14,3 +14,7 @@ func Set(key string, value string, expireTime time.Duration) error {
 func Get(key string) (string, error) {
 	return NewClient().Get(ctx, key).Result()
 }
+
+func Forget(key string) error {
+	return NewClient().Expire(ctx, key, 1).Err()
+}
